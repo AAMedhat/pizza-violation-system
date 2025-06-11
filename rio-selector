@@ -1,0 +1,75 @@
+# import cv2
+
+# # Path to your sample video
+# VIDEO_PATH = "samples/Sah w b3dha ghalt.mp4"
+
+# # Global variables
+# ref_point = []
+# cropping = False
+# roi_set = False
+# roi_coords = None
+
+# def click_and_crop(event, x, y, flags, param):
+#     global ref_point, cropping, roi_set, roi_coords
+
+#     # Left click starts selection
+#     if event == cv2.EVENT_LBUTTONDOWN:
+#         ref_point = [(x, y)]
+#         cropping = True
+
+#     # Dragging the mouse draws the rectangle
+#     elif event == cv2.EVENT_MOUSEMOVE:
+#         if cropping:
+#             temp_img = clone.copy()
+#             cv2.rectangle(temp_img, ref_point[0], (x, y), (0, 255, 0), 2)
+#             cv2.imshow("Frame", temp_img)
+
+#     # Release mouse to finish selection
+#     elif event == cv2.EVENT_LBUTTONUP:
+#         ref_point.append((x, y))
+#         cropping = False
+#         roi_set = True
+#         roi_coords = [ref_point[0][0], ref_point[0][1], ref_point[1][0], ref_point[1][1]]
+
+#         # Draw final rectangle
+#         cv2.rectangle(clone, ref_point[0], ref_point[1], (0, 255, 0), 2)
+#         cv2.imshow("Frame", clone)
+
+# # Load one frame from the video
+# cap = cv2.VideoCapture(VIDEO_PATH)
+# ret, frame = cap.read()
+# cap.release()
+
+# if not ret:
+#     print("[ERROR] Couldn't read from video")
+#     exit()
+
+# clone = frame.copy()
+# cv2.namedWindow("Frame")
+# cv2.setMouseCallback("Frame", click_and_crop)
+
+# while True:
+#     cv2.imshow("Frame", clone)
+#     key = cv2.waitKey(1) & 0xFF
+
+#     # Press 'r' to reset the cropping region
+#     if key == ord("r"):
+#         clone = frame.copy()
+#         ref_point = []
+#         roi_set = False
+#         roi_coords = None
+
+#     # Press 'c' to confirm ROI and exit
+#     elif key == ord("c"):
+#         if roi_set:
+#             print("[INFO] ROI coordinates:", roi_coords)
+#             break
+#         else:
+#             print("[INFO] Please select a region first.")
+
+# cv2.destroyAllWindows()
+
+# # Output ROI for use in config.py
+# if roi_coords:
+#     x1, y1, x2, y2 = roi_coords
+#     print(f"\nUse this in detection_service/config.py:\nPROTEIN_ROI = [{min(x1,x2)}, {min(y1,y2)}, {max(x1,x2)}, {max(y1,y2)}]")

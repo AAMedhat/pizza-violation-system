@@ -1,0 +1,25 @@
+# .gitignore
+
+# Byte-compiled / optimized / package files
+__pycache__
+*.pyc
+*.pyo
+*.pyc
+*.db
+*.sqlite
+*.log
+
+# Virtual environment
+venv/
+env/
+.virtualenvs/
+*.env
+
+# YOLO model
+models/
+
+# Sample videos
+samples/
+
+# Streaming service cache
+streaming_service/__pycache__/

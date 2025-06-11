@@ -1,0 +1,7 @@
+ultralytics
+opencv-python
+pika
+fastapi
+uvicorn
+numpy
+cv2
