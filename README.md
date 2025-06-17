@@ -26,7 +26,9 @@ PIZZA-VIOLATION-SYSTEM/
 │
 ├── detection_service/        # Core logic: detection, violation logic, ROI handling
 │   ├── config.py
-│   ├── detect_violations.py
+│   └── detect_violations.py
+│   
+│── frame_reader/             # Video frame publisher
 │   └── frame_reader.py
 │
 ├── models/                   # Trained YOLOv12 model weights
