@@ -1,11 +1,11 @@
-# frame_reader/frame_reader.py
-
+# frame_reader.py
 import cv2
 import pika
 import pickle
+from utils.helpers import draw_rois
+from detection_service.config import ROI_ZONES
 
-VIDEO_PATH = r"samples\Sah w b3dha ghalt (2).mp4"  # Make sure this path is correct
-
+VIDEO_PATH = r"samples\Right (2).mp4"
 
 def publish_frame(channel, frame, frame_id):
     try:
@@ -14,45 +14,38 @@ def publish_frame(channel, frame, frame_id):
             exchange='frames',
             routing_key='video',
             body=data,
-            properties=pika.BasicProperties(delivery_mode=2)  # Persistent message
+            properties=pika.BasicProperties(delivery_mode=2)
         )
-        print(f"[Frame Reader] Publishing frame {frame_id}")  # ✅ This is where you add the print
+        print(f"[Frame Reader] Frame {frame_id} published.")
     except Exception as e:
-        print("Error publishing frame:", e)
-
+        print("Error publishing:", str(e))
 
 def main():
-    # Connect to RabbitMQ
     connection = pika.BlockingConnection(pika.ConnectionParameters('localhost'))
     channel = connection.channel()
-
-    # Create exchange if it doesn't exist
     channel.exchange_declare(exchange='frames', exchange_type='fanout', durable=True)
 
-    # Open video file
     cap = cv2.VideoCapture(VIDEO_PATH)
     if not cap.isOpened():
-        print("❌ Error: Could not open video.")
+        print("❌ Error: Could not open video file")
         return
 
     frame_id = 0
-
     while True:
         ret, frame = cap.read()
         if not ret:
-            print("🔚 End of video stream.")
+            print("🖚 End of video stream.")
             break
 
-        publish_frame(channel, frame, frame_id)
+        frame_with_roi = draw_rois(frame.copy(), ROI_ZONES)
+        publish_frame(channel, frame_with_roi, frame_id)
         frame_id += 1
 
-        # Simulate real-time delay
-        if cv2.waitKey(30) & 0xFF == ord('q'):
+        if cv2.waitKey(1) == ord('q'):
             break
 
     cap.release()
     connection.close()
-
 
 if __name__ == "__main__":
     main()

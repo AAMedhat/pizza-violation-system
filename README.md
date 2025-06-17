@@ -1,157 +1,210 @@
-# Pizza Violation Detection System
 
-## Overview
-This project implements a **microservices-based Computer Vision system** designed to monitor hygiene protocols in a pizza store. The system detects violations when workers interact with designated **Regions of Interest (ROIs)** without using a scooper. It uses **YOLOv8** for object detection and **RabbitMQ** as the message broker to facilitate communication between services.
+# 🍕 Pizza Store Hygiene Violation Detection System
 
-## Architecture Overview
+A real-time computer vision system designed to monitor hygiene compliance in a pizza store using microservices. It detects if an employee interacts with protein ingredients **without a scooper** and flags these interactions as violations.
 
-The system is built using a microservices architecture, consisting of the following components:
+---
 
-1. **Frame Reader Service**
-   - Reads video frames from a video file or RTSP camera feed.
-   - Publishes frames to RabbitMQ.
+## 🔧 Architecture Overview
 
-2. **Message Broker**
-   - Uses **RabbitMQ** to facilitate communication between services.
-   - Handles buffering and stream management.
+This project is built as a **microservices-based architecture** comprising:
 
-3. **Detection Service**
-   - Subscribes to RabbitMQ to receive frames.
-   - Performs object detection using a pre-trained YOLOv8 model.
-   - Detects violations based on defined logic:
-     - If a hand enters an ROI and interacts with pizza without using a scooper → Counts as a violation.
-     - If a scooper is used → No violation.
-   - Sends results (bounding boxes, labels, violation status) to the Streaming Service.
+| Component         | Description                                                                 |
+|------------------|-----------------------------------------------------------------------------|
+| 🖼️ Frame Reader   | Reads video stream and publishes frames to RabbitMQ                        |
+| 🧠 Detection Service | Tracks hands, scoopers, pizza interactions using YOLOv12 + logic            |
+| 🌐 Streaming API  | Displays real-time annotated video and serves REST/WebSocket endpoints     |
+| 💻 Frontend UI    | Simple dashboard displaying video feed + violations in real time           |
+| 📦 Message Broker | RabbitMQ manages communication between services                            |
 
-4. **Streaming Service**
-   - Serves detection results via:
-     - REST API for metadata (e.g., number of violations).
-     - WebSocket for real-time video streaming with detections drawn on it.
-   - Uses **FastAPI** for backend and **HTML/CSS/JS** for frontend.
+---
 
-5. **Frontend UI**
-   - Displays:
-     - Live video stream with bounding boxes around detected objects.
-     - Regions of Interest (ROIs).
-     - Violation events (highlighted in red).
-
-## Project Structure
+## 📁 Folder Structure
 
 ```
-pizza-violation-system/
-├── detection_service/
+PIZZA-VIOLATION-SYSTEM/
+│
+├── detection_service/        # Core logic: detection, violation logic, ROI handling
+│   ├── config.py
 │   ├── detect_violations.py
-│   └── config.py
-├── frame_reader/
 │   └── frame_reader.py
-├── models/
-│   └── yolo12m-v2.pt
-├── samples/
-│   ├── Sah w b3dha ghalt.mp4
-│   ├── Sah w b3dha ghalt (2).mp4
-│   └── Sah w b3dha ghalt (3).mp4
-├── streaming_service/
+│
+├── models/                   # Trained YOLOv12 model weights
+│   └── best.pt
+│
+├── results/                  # Output results
+│   ├── processed_video.mp4
+│   └── violations/
+│       ├── violation_*.jpg
+│       └── violations.json
+│
+├── samples/                  # Test videos
+│
+├── streaming_service/        # FastAPI server
 │   ├── app.py
-│   ├── static/
 │   └── templates/
 │       └── index.html
-├── utils/
-│   └── helpers.py
+│
+├── utils/                    # Reusable utilities
+│   ├── helpers.py
+│   └── virtual_id_tracker.py
+│
+├── yolov12/                  # YOLOv12 source (cloned from GitHub)
 ├── requirements.txt
+├── pizza-final.ipynb         # Notebook used to train YOLOv12
 └── README.md
 ```
 
-## Setup Instructions
+---
+
+## 🎥 Detection Logic
+
+1. **Define ROIs** (`protein_1`, `protein_2`, etc.) for scooper-required zones.
+2. For each frame:
+   - Detect `Hand`, `Pizza`, and `Scooper` objects via YOLOv12.
+   - Track hands using `VirtualIDTracker` for consistent identification.
+   - If a **hand touches pizza without using a scooper** AND:
+     - Entered ROI but didn’t stay 11 seconds = 🚨 **Violation**
+     - OR used hand directly without scooper = 🚨 **Violation**
+   - Else if:
+     - Hand stayed >11s without touching = ✅ **Cleaning**
+     - Or touched pizza using scooper = ✅ **Safe**
+3. Frame and violation details saved to `results/violations/`.
+
+---
+
+## 💻 Frontend UI Features
+
+- Displays live video feed (updated per frame)
+- Shows `VirtualID` per hand
+- Highlights ROI zones
+- Alerts violation with frame snapshot + log
+- Displays total violation count
+
+---
+
+## 🚀 Getting Started
 
 ### 1. Install Dependencies
-Ensure you have Python 3.10+ installed. Install required packages:
-
 ```bash
 pip install -r requirements.txt
 ```
 
 ### 2. Configure RabbitMQ
-- Install and start RabbitMQ:
-  ```bash
-  sudo apt-get install rabbitmq-server
-  sudo systemctl start rabbitmq-server
-  ```
-- Verify RabbitMQ is running:
-  ```bash
-  sudo systemctl status rabbitmq-server
-  ```
 
-### 3. Run Services
-Start each service in separate terminals:
-
-1. **Frame Reader Service**
-   ```bash
-   python frame_reader/frame_reader.py
-   ```
-
-2. **Detection Service**
-   ```bash
-   python detection_service/detect_violations.py
-   ```
-
-3. **Streaming Service**
-   ```bash
-   python streaming_service/app.py
-   ```
-
-### 4. Access Frontend
-Open your browser and navigate to:
-- **Live Video Stream**: http://localhost:8000
-
-## Features
-
-1. **Real-Time Detection**
-   - Detects hands, scoopers, pizzas, and other objects in real time.
-   - Tracks interactions with ROIs.
-
-2. **Violation Detection Logic**
-   - Flags violations when a hand enters an ROI and interacts with pizza without using a scooper.
-
-3. **Visualization**
-   - Bounding boxes around detected objects.
-   - Highlighted ROIs.
-   - Violation alerts in red.
-
-4. **Scalability**
-   - Microservices architecture for modularity and scalability.
-
-## Dependencies
-
-- **Python Libraries**
-  - `ultralytics`: For YOLOv8 object detection.
-  - `opencv-python`: For video processing.
-  - `pika`: For RabbitMQ communication.
-  - `fastapi`, `uvicorn`: For the Streaming Service.
-  - `jinja2`: For templating in the Streaming Service.
-
-- **Pre-trained Model**
-  - `yolo12m-v2.pt`: Pre-trained YOLOv8 model for object detection.
-
-## Sample Videos
-The project includes sample videos in the `samples/` directory:
-- `Sah w b3dha ghalt.mp4`: Contains 1 violation.
-- `Sah w b3dha ghalt (2).mp4`: Contains 2 violations.
-- `Sah w b3dha ghalt (3).mp4`: Contains 1 violation.
-
-## Contributing
-Feel free to contribute by:
-- Improving detection accuracy.
-- Adding new features like Docker Compose support.
-- Enhancing the frontend UI.
-
-## License
-MIT License
-
-## Contact
-For questions or feedback, reach out at [your_email@example.com].
-
-## Acknowledgments
-- **YOLOv8**: For state-of-the-art object detection.
-- **RabbitMQ**: For reliable message queuing.
-- **FastAPI**: For building the Streaming Service.
+Install RabbitMQ:
+```bash
+sudo apt update
+sudo apt install rabbitmq-server
+sudo systemctl start rabbitmq-server
+sudo systemctl enable rabbitmq-server
+sudo systemctl status rabbitmq-server
 ```
+
+Or use Docker:
+```bash
+docker run -d --hostname rabbit --name rabbitmq \
+  -p 5672:5672 -p 15672:15672 rabbitmq:3-management
+```
+
+RabbitMQ UI: [http://localhost:15672](http://localhost:15672) (user: `guest`, pass: `guest`)
+
+### 3. Run Services (in 3 terminals)
+
+**Terminal 1: Frame Publisher**
+```bash
+python detection_service/frame_reader.py
+```
+
+**Terminal 2: Detection & Violation Logic**
+```bash
+python detection_service/detect_violations.py
+```
+
+**Terminal 3: Web Streaming Service**
+```bash
+python streaming_service/app.py
+```
+
+Then open: [http://localhost:8000](http://localhost:8000)
+
+---
+
+## 🧠 Virtual ID Tracking
+
+YOLO’s `track_id` values can be unstable between frames. The `VirtualIDTracker` solves this by:
+- Assigning stable virtual IDs based on object proximity
+- Tracking object positions across frames
+- Ensuring consistency for violation timing, scooper usage, and cleaning
+
+This makes violation detection far more robust.
+
+---
+
+## 🧪 Model Training (YOLOv12)
+
+This project uses a custom-trained **YOLOv12** model to detect:
+
+- `Hand`
+- `Scooper`
+- `Pizza`
+- `Person` 
+
+### 📊 Dataset
+
+- Annotated via Roboflow:  
+  👉 [PizzaStore Dataset](https://app.roboflow.com/abdelrhman-medhat/pizzastore-qftv2/5)
+
+### 🧠 Training Notebook
+
+- Training performed using: `pizza-final.ipynb`
+- Model base: YOLOv12 `yolov12m.pt`
+- Training repo: [https://github.com/sunsmarterjie/yolov12](https://github.com/sunsmarterjie/yolov12)
+
+### 🏋️‍♂️ How to Retrain
+
+1. Clone YOLOv12:
+```bash
+git clone https://github.com/sunsmarterjie/yolov12
+cd yolov12
+```
+
+2. Export dataset from Roboflow as YOLOv5 format.
+
+3. Train the model:
+```bash
+python train.py --data dataset.yaml --weights yolov12m.pt --cfg yolov12m.yaml --epochs 100 --img 640
+```
+
+4. Copy weights to project:
+```bash
+mv runs/train/exp/weights/best.pt ../models/best.pt
+```
+
+---
+
+## 📦 requirements.txt
+
+```
+ultralytics
+opencv-python
+pika
+fastapi
+uvicorn
+numpy
+```
+
+---
+
+## 📽️ Output Logs
+
+- Annotated video: `results/processed_video.mp4`
+- Violations images: `results/violations/*.jpg`
+- Log file: `results/violations/violations.json`
+
+---
+
+## 📬 Contact & Submission
+
+Developed by **Abdelrhman Medhat**  
+Built for the **Eagle Vision** task submission: real-time microservices video analysis

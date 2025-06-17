@@ -1,17 +1,18 @@
+# app.py
 from fastapi import FastAPI, WebSocket
-from fastapi.responses import StreamingResponse, HTMLResponse
-from fastapi.staticfiles import StaticFiles
+from fastapi.responses import StreamingResponse, FileResponse
 from fastapi.templating import Jinja2Templates
+from fastapi.staticfiles import StaticFiles
 import uvicorn
 import pika
 import pickle
 import threading
 import cv2
-import numpy as np
+import os
 
 app = FastAPI()
-app.mount("/static", StaticFiles(directory="streaming_service/static"), name="static")
-templates = Jinja2Templates(directory="streaming_service/templates")  # Correct path
+templates = Jinja2Templates(directory="streaming_service/templates")
+app.mount("/results", StaticFiles(directory="results"), name="results")
 
 latest_frame = None
 latest_violation_count = 0
@@ -19,9 +20,12 @@ latest_violation_count = 0
 def consume_frames():
     def callback(ch, method, properties, body):
         global latest_frame, latest_violation_count
-        frame_id, frame, count = pickle.loads(body)
-        latest_frame = frame
-        latest_violation_count = count
+        try:
+            frame_id, frame, count = pickle.loads(body)
+            latest_frame = frame
+            latest_violation_count = count
+        except Exception as e:
+            print("Error deserializing frame:", str(e))
 
     connection = pika.BlockingConnection(pika.ConnectionParameters('localhost'))
     channel = connection.channel()
@@ -52,6 +56,13 @@ def generate():
 def video_feed():
     return StreamingResponse(generate(), media_type="multipart/x-mixed-replace; boundary=frame")
 
+@app.get("/violations.json")
+async def violations():
+    path = "results/violations/violations.json"
+    if not os.path.exists(path):
+        return []
+    return FileResponse(path, media_type="application/json")
+
 if __name__ == "__main__":
-    threading.Thread(target=consume_frames).start()
+    threading.Thread(target=consume_frames, daemon=True).start()
     uvicorn.run(app, host="0.0.0.0", port=8000)

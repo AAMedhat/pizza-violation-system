@@ -1,4 +1,3 @@
-MODEL_PATH = "../models/yolo12m-v2.pt"
 CLASS_NAMES = {
     0: 'Hand',
     1: 'Person',
@@ -6,4 +5,9 @@ CLASS_NAMES = {
     3: 'Scooper'
 }
 
-PROTEIN_ROI = [380, 250, 510, 680] # [x1, y1, x2, y2] — update this based on your setup
+# Multiple ROIs
+ROI_ZONES = {
+    "protein_1": [415, 530, 465, 583],
+    "protein_2": [425, 473, 475, 525],
+    # Add more if needed
+}
