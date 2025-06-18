@@ -5,7 +5,7 @@ import pickle
 from utils.helpers import draw_rois
 from detection_service.config import ROI_ZONES
 
-VIDEO_PATH = r"samples\Right (2).mp4"
+VIDEO_PATH = r"samples\Sah w b3dha ghalt (3).mp4"
 
 def publish_frame(channel, frame, frame_id):
     try:
