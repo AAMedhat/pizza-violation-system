@@ -4,27 +4,13 @@
     "hand_id": 15,
     "roi_id": "protein_2",
     "scooper_id": null,
-    "timestamp": 1750155659
+    "timestamp": 1750223863
   },
   {
     "frame_id": 487,
     "hand_id": 4,
     "roi_id": "protein_1",
     "scooper_id": null,
-    "timestamp": 1750155691
-  },
-  {
-    "frame_id": 489,
-    "hand_id": 4,
-    "roi_id": "protein_2",
-    "scooper_id": null,
-    "timestamp": 1750155691
-  },
-  {
-    "frame_id": 490,
-    "hand_id": 4,
-    "roi_id": "protein_2",
-    "scooper_id": null,
-    "timestamp": 1750155691
+    "timestamp": 1750223894
   }
 ]

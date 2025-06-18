@@ -1,6 +1,4 @@
-# detect_violations.py
 import cv2
-# import numpy as np
 import pika
 import pickle
 import logging
@@ -9,7 +7,6 @@ import os
 import time
 import tempfile
 from multiprocessing import Queue
-
 from yolov12.ultralytics import YOLO
 from detection_service.config import CLASS_NAMES, ROI_ZONES
 from utils.helpers import get_center, draw_rois, save_violation_frame
@@ -25,9 +22,13 @@ video_writer = None
 
 violation_count = 0
 roi_entry_log = {}
+hand_roi_appearances = {}  # virtual_id -> list of frame_ids
+last_violation_frame = {}  # (virtual_id, roi_id) -> frame_id
 tracker = VirtualIDTracker(distance_threshold=80)
 
-CLEANING_TIMEOUT_FRAMES = 330  # ~11 seconds at 30 FPS
+CLEANING_TIMEOUT_FRAMES = 330
+ENTRY_CONFIRMATION_FRAMES = 30
+VIOLATION_COOLDOWN_FRAMES = 120
 PIZZA_TOUCH_DIST = 70
 SCOOPER_TOUCH_DIST = 80
 
@@ -61,27 +62,42 @@ def process_frame(frame, frame_id):
 
     virtual_map = tracker.update(detections)
 
+    # Track hand appearances in ROI
     for real_id, obj in detections.items():
         if obj["label"] != "Hand":
             continue
         virtual_id = virtual_map.get(real_id)
         if virtual_id is None:
             continue
+
+        in_roi = None
         for roi_id, roi_box in ROI_ZONES.items():
             if is_point_in_roi_bbox(obj["bbox"], roi_box):
-                if virtual_id not in roi_entry_log:
-                    roi_entry_log[virtual_id] = {
-                        "roi_id": roi_id,
-                        "entry_frame": frame_id,
-                        "last_seen": frame_id,
-                        "touched_pizza": False,
-                        "used_scooper": False,
-                        "scooper_id": None
-                    }
-                    print(f"[DEBUG] Hand {virtual_id} entered ROI {roi_id} at frame {frame_id}")
-                else:
-                    roi_entry_log[virtual_id]["last_seen"] = frame_id
+                in_roi = roi_id
+                break
 
+        if in_roi:
+            # Track frame appearances within sliding window
+            hand_roi_appearances.setdefault(virtual_id, []).append(frame_id)
+            hand_roi_appearances[virtual_id] = [
+                f for f in hand_roi_appearances[virtual_id]
+                if f >= frame_id - ENTRY_CONFIRMATION_FRAMES
+            ]
+
+            if virtual_id not in roi_entry_log and len(hand_roi_appearances[virtual_id]) >= 1:
+                roi_entry_log[virtual_id] = {
+                    "roi_id": in_roi,
+                    "entry_frame": frame_id,
+                    "last_seen": frame_id,
+                    "touched_pizza": False,
+                    "used_scooper": False,
+                    "scooper_id": None
+                }
+                print(f"[DEBUG] Hand {virtual_id} confirmed in ROI {in_roi} at frame {frame_id}")
+            elif virtual_id in roi_entry_log:
+                roi_entry_log[virtual_id]["last_seen"] = frame_id
+
+    # Scooper detection
     for real_id, obj in detections.items():
         if obj["label"] != "Scooper":
             continue
@@ -92,8 +108,9 @@ def process_frame(frame, frame_id):
             if vid in roi_entry_log and bboxes_intersect(obj["bbox"], hobj["bbox"]):
                 roi_entry_log[vid]["used_scooper"] = True
                 roi_entry_log[vid]["scooper_id"] = real_id
-                print(f"[DEBUG] Hand {vid} used scooper {real_id} in ROI {roi_entry_log[vid]['roi_id']} at frame {frame_id}")
+                print(f"[DEBUG] Hand {vid} used scooper {real_id} at frame {frame_id}")
 
+    # Pizza interaction
     for real_id, obj in detections.items():
         if obj["label"] != "Pizza":
             continue
@@ -103,35 +120,42 @@ def process_frame(frame, frame_id):
             vid = virtual_map.get(hand_id)
             if vid in roi_entry_log and bboxes_intersect(obj["bbox"], hobj["bbox"]):
                 roi_entry_log[vid]["touched_pizza"] = True
-                print(f"[DEBUG] Hand {vid} overlapped pizza at frame {frame_id}")
+                print(f"[DEBUG] Hand {vid} touched pizza at frame {frame_id}")
 
+    # Evaluation logic
     to_delete = []
-    for virtual_id, entry in list(roi_entry_log.items()):
+    for vid, entry in roi_entry_log.items():
         duration = frame_id - entry["entry_frame"]
-        print(f"[TRACE] Hand {virtual_id} | ROI: {entry['roi_id']} | Scooper: {entry['used_scooper']} (ID: {entry['scooper_id']}) | Pizza: {entry['touched_pizza']} | Duration: {duration}")
+        roi_id = entry["roi_id"]
+        print(f"[TRACE] Hand {vid} | ROI: {roi_id} | Scooper: {entry['used_scooper']} | Pizza: {entry['touched_pizza']} | Duration: {duration}")
+
+        last_frame = last_violation_frame.get(vid, -VIOLATION_COOLDOWN_FRAMES - 1)
 
         if entry["touched_pizza"] and not entry["used_scooper"] and duration < CLEANING_TIMEOUT_FRAMES:
-            violation_count += 1
-            print(f"[🚨 VIOLATION] Hand {virtual_id} touched pizza too early (before cleaning timeout) and without scooper in ROI {entry['roi_id']} at frame {frame_id}")
-            save_violation_frame(frame, "results/violations")
-            log_violation_info(frame_id, virtual_id, entry['roi_id'], entry.get("scooper_id"))
-            to_delete.append(virtual_id)
+            if frame_id - last_frame >= VIOLATION_COOLDOWN_FRAMES:
+                violation_count += 1
+                last_violation_frame[vid] = frame_id
+                print(f"[🚨 VIOLATION] Hand {vid} touched pizza too early without scooper in ROI {roi_id}")
+                save_violation_frame(frame, "results/violations")
+                log_violation_info(frame_id, vid, roi_id, entry["scooper_id"])
+            to_delete.append(vid)
 
         elif not entry["touched_pizza"] and duration >= CLEANING_TIMEOUT_FRAMES:
-            print(f"[✅ CLEANING] Hand {virtual_id} did not touch pizza for 11 seconds after entering ROI {entry['roi_id']} — considered cleaning")
-            to_delete.append(virtual_id)
-
-        elif entry["touched_pizza"] and not entry["used_scooper"] and duration >= CLEANING_TIMEOUT_FRAMES:
-            print(f"[INFO] Hand {virtual_id} touched pizza AFTER cleaning period (no violation) in ROI {entry['roi_id']}")
-            to_delete.append(virtual_id)
+            print(f"[✅ CLEANING] Hand {vid} cleaned for 11s in ROI {roi_id}")
+            to_delete.append(vid)
 
         elif entry["touched_pizza"] and entry["used_scooper"]:
-            print(f"[INFO] Hand {virtual_id} touched pizza WITH scooper in ROI {entry['roi_id']}")
-            to_delete.append(virtual_id)
+            print(f"[INFO] Hand {vid} used scooper in ROI {roi_id}")
+            to_delete.append(vid)
+
+        elif entry["touched_pizza"] and not entry["used_scooper"] and duration >= CLEANING_TIMEOUT_FRAMES:
+            print(f"[INFO] Hand {vid} touched pizza after timeout (no violation) in ROI {roi_id}")
+            to_delete.append(vid)
 
     for vid in to_delete:
         roi_entry_log.pop(vid, None)
 
+    # Draw results
     annotated_frame = frame.copy()
     for real_id, obj in detections.items():
         virtual_id = virtual_map.get(real_id)
@@ -175,7 +199,7 @@ def log_violation_info(frame_id, hand_id, roi_id, scooper_id=None):
             json.dump(data, tf, indent=2)
             temp_name = tf.name
         os.replace(temp_name, log_file)
-        print(f"[INFO] Violation logged for frame {frame_id} in ROI {roi_id} using scooper ID {scooper_id}")
+        print(f"[INFO] Violation logged for frame {frame_id} in ROI {roi_id}")
     except Exception as e:
         print("[ERROR] Failed to log violation:", str(e))
     violations_queue.put(entry)

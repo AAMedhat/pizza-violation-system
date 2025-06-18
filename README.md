@@ -61,17 +61,38 @@ PIZZA-VIOLATION-SYSTEM/
 
 ## 🎥 Detection Logic
 
-1. **Define ROIs** (`protein_1`, `protein_2`, etc.) for scooper-required zones.
+1. **ROI Zones** (`protein_1`, `protein_2`, etc.) are defined in `config.py` and overlaid on each frame.
 2. For each frame:
-   - Detect `Hand`, `Pizza`, and `Scooper` objects via YOLOv12.
-   - Track hands using `VirtualIDTracker` for consistent identification.
-   - If a **hand touches pizza without using a scooper** AND:
-     - Entered ROI but didn’t stay 11 seconds = 🚨 **Violation**
-     - OR used hand directly without scooper = 🚨 **Violation**
-   - Else if:
-     - Hand stayed >11s without touching = ✅ **Cleaning**
-     - Or touched pizza using scooper = ✅ **Safe**
-3. Frame and violation details saved to `results/violations/`.
+   - YOLOv12 detects: `Hand`, `Pizza`, `Scooper`, `Person`.
+   - A **Virtual ID Tracker** ensures consistent tracking of each hand, even if YOLO's native IDs fluctuate.
+
+3. **ROI Entry Confirmation**:
+   - A hand is considered **entered into an ROI** only if it appears **at least twice** within a **30-frame sliding window**.
+   - This avoids false entries from momentary detections.
+
+4. **Violation Detection**:
+   A violation is flagged if **ALL** the following are true:
+   - The hand is confirmed to have entered the ROI ✅
+   - The hand touches pizza ❌
+   - The hand did **not use a scooper** ❌
+   - The hand touched pizza **within 11 seconds (~330 frames)** of ROI entry ❌
+   - The last violation from the same hand was **more than 120 frames ago** ✅  
+     → Prevents duplicate violations being logged too frequently for the same hand.
+
+5. **Safe Scenarios**:
+   - ✅ **Cleaning:** Hand remains in ROI for more than 11 seconds and doesn’t touch pizza.
+   - ✅ **Scooper Use:** Hand touches pizza using a scooper (within or after timeout).
+   - ✅ **Touch after timeout:** Hand touches pizza after 11 seconds without scooper, considered Cleaning.
+
+6. **Logging & Results**:
+   - Annotated video saved to: `results/processed_video.mp4`
+   - Violation snapshots saved in: `results/violations/*.jpg`
+   - Violation metadata logged in: `results/violations/violations.json` including:
+     - Frame ID
+     - Virtual Hand ID
+     - ROI ID
+     - Timestamp
+
 
 ---
 

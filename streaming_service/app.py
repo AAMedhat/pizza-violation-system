@@ -9,6 +9,7 @@ import pickle
 import threading
 import cv2
 import os
+import json
 
 app = FastAPI()
 templates = Jinja2Templates(directory="streaming_service/templates")
@@ -44,7 +45,11 @@ async def websocket_endpoint(websocket: WebSocket):
     while True:
         if latest_frame is not None:
             _, buffer = cv2.imencode('.jpg', latest_frame)
-            await websocket.send_bytes(buffer.tobytes())
+            payload = {
+                "image": buffer.tobytes().hex(),
+                "violation_count": latest_violation_count
+            }
+            await websocket.send_text(json.dumps(payload))
 
 def generate():
     while True:
@@ -61,7 +66,8 @@ async def violations():
     path = "results/violations/violations.json"
     if not os.path.exists(path):
         return []
-    return FileResponse(path, media_type="application/json")
+    with open(path, "r") as f:
+        return json.load(f) 
 
 if __name__ == "__main__":
     threading.Thread(target=consume_frames, daemon=True).start()

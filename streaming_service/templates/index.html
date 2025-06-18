@@ -2,95 +2,104 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Pizza Violation Detection</title>
+    <title>Pizza Hygiene Monitor</title>
     <style>
         body {
             font-family: 'Segoe UI', sans-serif;
-            background-color: #f9f9f9;
-            color: #333;
+            background-color: #1e1e1e;
+            color: white;
+            margin: 0;
+            padding: 0;
             display: flex;
-            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .left-panel {
+            flex: 2;
+            display: flex;
+            justify-content: center;
             align-items: center;
+            background-color: #111;
+        }
+
+        .left-panel img {
+            width: 100%;
+            height: auto;
+            max-height: 100vh;
+            object-fit: contain;
+        }
+
+        .right-panel {
+            flex: 1;
+            background-color: #222;
             padding: 20px;
+            overflow-y: auto;
         }
 
         h1 {
             color: #e53935;
-            margin-bottom: 10px;
-        }
-
-        .counter {
             font-size: 22px;
-            font-weight: 600;
-            margin-bottom: 20px;
-            color: #444;
-        }
-
-        .video-container {
-            border: 5px solid #ddd;
-            border-radius: 8px;
-            overflow: hidden;
-            box-shadow: 0 2px 12px rgba(0,0,0,0.15);
-            margin-bottom: 20px;
-        }
-
-        img {
-            max-width: 960px;
-            height: auto;
-        }
-
-        .violations-log {
-            width: 960px;
-            max-height: 300px;
-            overflow-y: auto;
-            background: #fff;
-            border: 1px solid #ccc;
-            padding: 10px;
-            border-radius: 6px;
+            margin-top: 0;
         }
 
         .violation-item {
-            background-color: #ffebee;
-            border-left: 5px solid #e53935;
+            background-color: #333;
+            border-left: 4px solid #e53935;
             padding: 10px;
             margin-bottom: 10px;
-            border-radius: 4px;
+            border-radius: 5px;
             font-size: 14px;
+        }
+
+        .violation-item b {
+            color: #fdd835;
+        }
+
+        .count {
+            font-weight: bold;
+            font-size: 16px;
+            margin-bottom: 10px;
+            color: #eee;
         }
     </style>
 </head>
 <body>
-    <h1>Pizza Store Hygiene Monitor</h1>
-
-    <div class="video-container">
+    <div class="left-panel">
         <img src="/video_feed" id="liveFeed" />
     </div>
-
-    <div class="violations-log" id="violationsLog">
-        <!-- Violation alerts will appear here -->
+    <div class="right-panel">
+        <h1>Violation Log</h1>
+        <div class="count">Total: <span id="violationCount">0</span></div>
+        <div id="violationsLog"></div>
     </div>
 
     <script>
         const ws = new WebSocket(`ws://${location.host}/ws`);
-        const violationCountElem = document.getElementById('violationCount');
-        const violationsLog = document.getElementById('violationsLog');
-
-        let previousViolationCount = 0;
+        const violationsLog = document.getElementById("violationsLog");
+        const violationCountElem = document.getElementById("violationCount");
 
         async function fetchViolations() {
-            const res = await fetch('/violations.json');
-            const data = await res.json();
+            try {
+                const res = await fetch("/violations.json");
+                const data = await res.json();
 
-            if (data.length > previousViolationCount) {
-                const newViolations = data.slice(previousViolationCount);
-                newViolations.forEach(v => {
-                    const div = document.createElement('div');
-                    div.classList.add('violation-item');
-                    div.innerHTML = `🚨 <b>Frame:</b> ${v.frame_id} | <b>Hand ID:</b> ${v.hand_id} | <b>ROI ID:</b> ${v.roi_id}<br><b>Time:</b> ${new Date(v.timestamp * 1000).toLocaleTimeString()}`;
-                    violationsLog.prepend(div);
-                });
-                previousViolationCount = data.length;
+                violationsLog.innerHTML = "";  // Clear previous entries
                 violationCountElem.textContent = data.length;
+
+                data.reverse().forEach(v => {
+                    const div = document.createElement("div");
+                    div.className = "violation-item";
+                    div.innerHTML = `
+                        🍕 <b>Frame:</b> ${v.frame_id}<br>
+                        <b>Hand ID:</b> ${v.hand_id}<br>
+                        <b>ROI:</b> ${v.roi_id}<br>
+                        <b>Time:</b> ${new Date(v.timestamp * 1000).toLocaleTimeString()}
+                    `;
+                    violationsLog.appendChild(div);
+                });
+            } catch (err) {
+                console.error("Failed to load violations.json:", err);
             }
         }
 
