@@ -12,12 +12,10 @@ This repository contains **two structurally similar but performance-wise distinc
 |---------|--------------|----------------------|------------------------------------|
 | `v1`   | YOLOv12m     | `pizza-final.ipynb`  | Uses medium YOLOv12, baseline     |
 | `v2`   | YOLOv12l     | `pizza-finalV2.ipynb`| Uses large YOLOv12, better recall & per-class detection |
-| `main`   | YOLOv12l     | `pizza-finalV2.ipynb`| Uses large YOLOv12, better recall & per-class detection |
 
 📁 **Each branch is in its own folder:**
 - [`v1`]: Original version using `YOLOv12m`
 - [`v2`]: Improved version using `YOLOv12l` with better metrics
-- [`main`]: Improved version using `YOLOv12l` with better metrics and Docker Build
 ---
 
 ## 📊 Model Performance Comparison
