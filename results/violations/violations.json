@@ -1,16 +1,9 @@
 [
   {
-    "frame_id": 166,
-    "hand_id": 15,
+    "frame_id": 521,
+    "hand_id": 59,
     "roi_id": "protein_2",
     "scooper_id": null,
-    "timestamp": 1750243551
-  },
-  {
-    "frame_id": 487,
-    "hand_id": 4,
-    "roi_id": "protein_1",
-    "scooper_id": null,
-    "timestamp": 1750243581
+    "timestamp": 1750246862
   }
 ]

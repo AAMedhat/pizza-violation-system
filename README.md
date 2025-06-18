@@ -73,8 +73,8 @@ This project uses a custom-trained **YOLOv12** model to detect:
 
 ### 🧠 Training Notebook
 
-- Training performed using: `pizza-final.ipynb`
-- Model base: YOLOv12 `yolov12m.pt`
+- Training performed using: `pizza-finalV2.ipynb`
+- Model base: YOLOv12 `YOLOv12l.pt`
 - Training repo: [https://github.com/sunsmarterjie/yolov12](https://github.com/sunsmarterjie/yolov12)
 
 ---
@@ -91,7 +91,7 @@ PIZZA-VIOLATION-SYSTEM/
 │── frame_reader/             # Video frame publisher
 │   └── frame_reader.py
 │
-├── models/                   # Trained yolov12m model weights
+├── models/                   # Trained yolov12l model weights
 │   └── best.pt
 │
 ├── results/                  # Output results
