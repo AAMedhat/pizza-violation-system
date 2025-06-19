@@ -218,7 +218,7 @@ def callback(ch, method, properties, body):
         print("[ERROR] Failed to process frame:", str(e))
 
 def main():
-    connection = pika.BlockingConnection(pika.ConnectionParameters('localhost'))
+    connection = pika.BlockingConnection(pika.ConnectionParameters('rabbitmq'))
     channel = connection.channel()
     channel.exchange_declare(exchange='results', exchange_type='fanout', durable=True)
     channel.queue_declare(queue='detection')

@@ -111,10 +111,18 @@ PIZZA-VIOLATION-SYSTEM/
 │   ├── helpers.py
 │   └── virtual_id_tracker.py
 │
+├── Docker/
+│   ├── docker-compose.yml     #✅ Core file to orchestrate the system
+│   ├── input/                 #📥 Place your video here (as input.mp4)
+│   │   └── input.mp4
+│   └── output/                #📤 This folder will be auto-populated with detection results
+│
 ├── yolov12/                  # YOLOv12 source (cloned from GitHub)
 ├── requirements.txt
 ├── pizza-final.ipynb         # Notebook used to train YOLOv12
-└── README.md
+├── Dockerfile                # Handles all logic for Docker Image
+├── wait-for-rabbit.sh
+└── README.md                 #📘 You are here
 ```
 ---
 
@@ -151,8 +159,7 @@ PIZZA-VIOLATION-SYSTEM/
      - Virtual Hand ID
      - ROI ID
      - Timestamp
-
-
+     
 ---
 
 ## 💻 Frontend UI Features
@@ -241,6 +248,88 @@ numpy
 - Annotated video: `results/processed_video.mp4`
 - Violations images: `results/violations/*.jpg`
 - Log file: `results/violations/violations.json`
+
+---
+
+## 🐳 Docker Usage
+
+This project includes a fully automated Docker-based workflow.
+
+## 🚀 Quick Start (Docker-Only)
+
+> ⚠️ Make sure Docker is installed and running on your system.
+> ⚠️ Make sure the `Docker/` folder is on your device.
+
+### 1. ✅ Place Your Video
+
+Put your input video in:
+
+```
+Docker/input/input.mp4
+```
+
+Make sure the file is named exactly `input.mp4`.
+
+---
+
+### 2. ▶️ Run the System
+
+From the `Docker/` folder, run:
+
+```bash
+docker compose up
+```
+
+This will:
+- Start the FastAPI web dashboard on [http://localhost:8000](http://localhost:8000)
+- Start RabbitMQ message broker on [http://localhost:15672](http://localhost:15672)
+- Begin processing your video in real time
+- Stream live detection results and log violations automatically
+
+---
+
+### 3. 📤 Get Your Results
+
+After the run finishes or you stop it (`Ctrl+C`), results will appear in:
+
+```
+Docker/output/
+```
+
+This includes:
+- `processed_video.mp4`
+- Detected violations in `.jpg`
+- Log file: `violations.json`
+
+---
+
+## 🧠 Behind the Scenes
+
+The system runs 3 microservices inside one container:
+
+- `frame_reader.py` → reads video frame-by-frame
+- `detect_violations.py` → performs YOLOv12 tracking & hygiene logic
+- `app.py` → serves a live dashboard via FastAPI
+
+RabbitMQ is also used for internal communication.
+
+---
+
+## ❓ Troubleshooting
+
+- Make sure `input/input.mp4` exists before running
+- Ensure `models/best.pt` and other model files are baked into your Docker image
+- For any Python errors, rebuild the image or re-check your `Dockerfile`
+
+---
+
+## 🧼 To Clean Previous Results
+
+Just delete the contents of the `output/` folder before your next run:
+
+```bash
+rm -rf output/*
+```
 
 ---
 

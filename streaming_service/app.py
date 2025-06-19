@@ -28,7 +28,7 @@ def consume_frames():
         except Exception as e:
             print("Error deserializing frame:", str(e))
 
-    connection = pika.BlockingConnection(pika.ConnectionParameters('localhost'))
+    connection = pika.BlockingConnection(pika.ConnectionParameters('rabbitmq'))
     channel = connection.channel()
     channel.queue_declare(queue='streaming')
     channel.basic_consume(queue='streaming', on_message_callback=callback, auto_ack=True)

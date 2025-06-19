@@ -4,8 +4,9 @@ import pika
 import pickle
 from utils.helpers import draw_rois
 from detection_service.config import ROI_ZONES
+import os
 
-VIDEO_PATH = r"samples\Sah w b3dha ghalt (3).mp4"
+VIDEO_PATH = os.environ.get("VIDEO_PATH", "samples/input.mp4")
 
 def publish_frame(channel, frame, frame_id):
     try:
@@ -21,7 +22,7 @@ def publish_frame(channel, frame, frame_id):
         print("Error publishing:", str(e))
 
 def main():
-    connection = pika.BlockingConnection(pika.ConnectionParameters('localhost'))
+    connection = pika.BlockingConnection(pika.ConnectionParameters('rabbitmq'))
     channel = connection.channel()
     channel.exchange_declare(exchange='frames', exchange_type='fanout', durable=True)
 

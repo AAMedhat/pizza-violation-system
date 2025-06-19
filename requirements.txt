@@ -1,7 +1,6 @@
 ultralytics
-opencv-python
+opencv-python-headless
 pika
 fastapi
-uvicorn
+uvicorn[standard]
 numpy
-cv2
